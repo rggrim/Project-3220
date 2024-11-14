@@ -1,43 +1,33 @@
-# Load libraries
 library(tidyverse)
 library(dplyr)
-
-# Load the dataset
 booksRaw <- read.csv("Goodreads_books_with_genres.csv")
-
-# Preview the raw data
+#summary(books)
 head(booksRaw)
-
-# Data Cleaning and Transformation
-books <- booksRaw
-
-# Separate genres into individual rows and remove any empty genre entries
-books <- books %>%
-  separate_rows(genres, sep = ';|,') %>%
-  mutate(genres = trimws(genres)) %>%
-  filter(genres != "")
-
-# Create unique genre list
-genreDF <- unique(books$genres)
-
-# One-hot encoding for each genre
+# This next segment is to separate the genres into individual columns with 1 hot encoding
+# Create a list of each genre
+separate_genres <- books %>% separate_rows(genres, sep=';|,')
+genreDF <- separate_genres$genres |> unique() |> c()
+# Creating a column for each genre and populating it with zeros
+new_columns <- data.frame(matrix(0, nrow = nrow(books),
+                                 ncol = length(genreDF)))
+colnames(new_columns) <- genreDF
+# Combining the two dataframes
+books <- cbind(books, new_columns)
 for (g in genreDF) {
-  # Ensure column name is valid and doesn’t contain invalid characters
-  col_name <- make.names(g)
-  books[[col_name]] <- ifelse(grepl(g, books$genres), 1, 0)
+  # Create a binary column for each genre
+  books[[g]] <- sapply(books$genre, function(x) as.integer(grepl(g, x)))
 }
+# Drop original genre column
+books$genres <- NULL
 
-# Drop the original genres column
-books <- books %>% select(-genres)
-
-# Standardize column names
+# Give column titles same naming convention
 names(books) <- tolower(gsub(" ", "_", names(books)))
 
-# Remove duplicate column names
-books <- books %>% select(unique(names(books)))
+# Removes duplicate column names
+books <- books[, !duplicated(names(books))]
 
 # Convert types
-books <- books %>%
+books <- books |>
   mutate(
     num_pages = as.integer(num_pages),
     ratings_count = as.integer(ratings_count),
@@ -47,24 +37,24 @@ books <- books %>%
   )
 
 # Remove unwanted columns
-books <- books %>% select(-isbn, -isbn13)
+books <- subset(books, select = -c(isbn,isbn13) )
 
-# Remove any books with no pages / no rating
-books <- books %>% filter(num_pages > 0 & average_rating > 0)
+#Remove any books with no pages / no rating
+books <- filter(books, num_pages > 0 & average_rating > 0)
 
-# EDA: Visualize distributions of key numeric variables
 
-# Histogram of average ratings
+#EDA: Visualize distributions of key numeric variables
+#Histogram of average ratings
 ggplot(books, aes(x = average_rating)) +
   geom_histogram(bins = 30, fill = "blue", color = "black") +
   labs(title = "Distribution of Average Ratings", x = "Average Rating", y = "Frequency")
+
 
 # Histogram of number of pages
 ggplot(books, aes(x = num_pages)) +
   geom_histogram(bins = 30, fill = "green", color = "black") +
   labs(title = "Distribution of Number of Pages", x = "Number of Pages", y = "Frequency")
 
-# Scatter plot of ratings count vs average rating
+# Correlation between ratings count and average rating
 ggplot(books, aes(x = ratings_count, y = average_rating)) +
-  geom_point(alpha = 0.5) +
-  labs(title = "Ratings Count vs Average Rating", x = "Ratings Count", y = "Average Rating")
+  geom_point(alpha = 0.5)
