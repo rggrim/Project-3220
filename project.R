@@ -1,3 +1,4 @@
+start.time <- Sys.time()          #for runtime evaluation at the end
 library(tidyverse)
 library(dplyr)
 library(caret)
@@ -257,3 +258,7 @@ ggplot(rf_predictions, aes(x = average_rating, y = .pred)) +
 
 
 print(rf_metrics)
+
+end.time <- Sys.time()
+time.taken <- round(end.time - start.time,2)
+time.taken
